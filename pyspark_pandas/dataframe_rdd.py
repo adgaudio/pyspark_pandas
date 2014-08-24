@@ -213,17 +213,18 @@ class DataFrameRDD(object):
                 tmpdf[col].dropna().values, int(k[col]-1))
         return rv
 
-    def percentileApprox(self, percentile=0.5, nbins=None):
+    def percentileApprox(self, percentile=50, nbins=None):
         """Use a median of medians approach to calculate the percentile
 
         Exactly one of these should be defined:
             percentile - (optional) an int or array of ints
-                in the range [0, 1] inclusive. Ignored if `nbins` is supplied.
+                in the range [0, 100] inclusive. Ignored if `nbins` is supplied.
             nbins - (optional) an integer number representing how many evenly
                 spaced percentiles to calculate.
         """
         log.info("Executing percentileApprox", extra=dict(nbins=nbins))
         rdd = self.rdd
+        percentile /= 100
 
         def get_percentiles(key_df):
             if nbins is None:
@@ -235,7 +236,7 @@ class DataFrameRDD(object):
             return df.quantile(q)
         frame = pd.concat(rdd.map(get_percentiles, True).collect())
         # reduce the values from all distributed frames for each percentile
-        log.debug('get median of each bin')
+        log.debug('get median of each percentile bin')
         bins = frame.groupby(level=0).median()
         bins.index.name = 'percentileApprox'
         return bins

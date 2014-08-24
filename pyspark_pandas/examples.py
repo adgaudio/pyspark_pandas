@@ -15,7 +15,7 @@ def make_frame(i=0, index=list('abcdefghij'), columns=list('ABCDEFGHIJ')):
 def spark_context():
     log.info("initializing a pyspark.SparkContext for testing")
     try:
-        return pyspark.SparkContext('local', 'pyspark_pandas_demo')
+        return pyspark.SparkContext('local[4]', 'pyspark_pandas_demo')
     except ValueError:
         log.warn("Another Spark Context is already active.  Using that one")
         return pyspark.SparkContext._active_spark_context
@@ -38,7 +38,7 @@ def demo():
     log.info('rdd.mean()')
     print rdd.mean()
 
-    log.info('rdd.percentileApprox()')
-    print rdd.percentileApprox()
+    log.info('rdd.percentileApprox(percentile=50)')
+    print rdd.percentileApprox(percentile=50)
 
     return rdd
