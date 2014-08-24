@@ -7,7 +7,7 @@ except ImportError:
     raise
 
 setup(
-    name='pyspark_pandas',
+    name='pyspark-pandas',
     version='0.0.1-dev',
     description=(
         'Tools and algorithms for pandas Dataframes distributed on pyspark.'
