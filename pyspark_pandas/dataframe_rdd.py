@@ -54,7 +54,7 @@ def _update_bounds_rv_and_k(min_bound, max_bound, rv, m_sum, n, k, pivot):
     min_bound[finished_cols] = np.NaN
     rv[finished_cols] = pivot[finished_cols]
 
-    k[mincols] -= (n[mincols] - m_sum[mincols])
+    k[mincols] -= (n[mincols] - m_sum[mincols] - 1)
 
 
 def rolling_avg(*mean_count_data):
@@ -116,7 +116,7 @@ class DataFrameRDD(object):
         rv.name = 'mean'
         return rv
 
-    def percentile(self, percentile=50, maxiter=np.inf):
+    def percentile(self, percentile=50, maxiter=np.inf, max_frame_size=None):
         """
         Calculate the percentile (median by default) of each column in
         the distributed dataframes
@@ -124,6 +124,10 @@ class DataFrameRDD(object):
         percentile - a number between [0, 100] inclusive
         maxiter - if given, stop after n iterations and raise an error
             (useful for debugging)
+        max_frame_size - (int) as an optimization, the algorithm will attempt
+            to merge all relevant elements into one large array and then
+            calculate the median.  This number specifies the maximum num floats
+            that can safely be stored in memory.
 
         Use this percentile algorithm when the entire column of a dataframe
         is too large to fit in memory.
@@ -144,14 +148,24 @@ class DataFrameRDD(object):
         n.name = 'n, total count of values per column'
         k = n * (100 - percentile) / 100
         k.name = 'k, index location of percentile'
+        if max_frame_size is None:
+            max_frame_size = counts_bykey.sum(axis=1).max()
         max_bound = pd.Series(index=n.index).fillna(np.inf)
         max_bound.name = 'max_bound, limit above which median does not exist'
         min_bound = pd.Series(index=n.index).fillna(np.inf * -1)
         min_bound.name = 'min_bound, limit below which median does not exist'
         rv = pd.Series(index=n.index, name='rv, the percentile per column')
+        nullcols = rv.index[rv.isnull()]
 
         _debugcnt = 0
-        while True:
+        if max_frame_size > 0:
+            loop = lambda: (
+                counts_bykey[nullcols].sum(axis=1).sum() >= max_frame_size)
+        else:
+            loop = lambda: True
+        while loop():
+            log.debug('elements remaining to process: %s'
+                      % counts_bykey[nullcols].sum(axis=1).sum())
             _debugcnt += 1
             if _debugcnt > maxiter:
                 raise Exception('max allowed iterations reached')
@@ -164,6 +178,7 @@ class DataFrameRDD(object):
             # then next try shouldn't be a mean but some sort of gradient
             # function that approaches the median.  maybe similar to:
             # pivot = (oldmean/(oldmax-oldmin) + mean/(max-min)) / 2*(max-min)
+            # TODO: have sampleValue return updated counts via with_counts=True
             log.debug('percentile: count values greater than pivot')
 
             def count_values_gt_than_pivot(key_df):
@@ -181,10 +196,20 @@ class DataFrameRDD(object):
             counts_bykey = self.countByKey(
                 min_bound=min_bound, max_bound=max_bound)
             n = counts_bykey.sum()
-
+            nullcols = rv.index[rv.isnull()]
             if not rv.isnull().any():
-                break
+                return rv
 
+        # merge remaining items and calculate percentile directly
+        tmpdf = (
+            rdd
+            .map(lambda key_df: get_values_in_bounds(
+                key_df[1][nullcols], min_bound, max_bound))
+            .reduce(lambda x, y: pd.concat([x, y]))
+        )
+        for col in nullcols:
+            rv[col] = pd.algos.kth_smallest(
+                tmpdf[col].dropna().values, int(k[col]-1))
         return rv
 
     def percentileApprox(self, percentile=0.5, nbins=None):
