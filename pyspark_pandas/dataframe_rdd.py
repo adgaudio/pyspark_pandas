@@ -3,8 +3,7 @@ from __future__ import division
 import numpy as np
 import pandas as pd
 
-import logging
-log = logging.getLogger('pyspark.DataframeRDD')
+from pyspark_pandas import log
 
 
 def get_values_in_bounds(df, min_bound, max_bound, copy=False):
@@ -138,6 +137,8 @@ class DataFrameRDD(object):
             frames in the rdd
 
         It does not estimate the percentile.
+        If the percentile falls between two values,
+            it gives you the lesser of the two values
         It safely handles na values
         """
         assert percentile > 0 and percentile < 100
@@ -146,7 +147,7 @@ class DataFrameRDD(object):
         counts_bykey = self.countByKey()
         n = counts_bykey.sum()
         n.name = 'n, total count of values per column'
-        k = n * (100 - percentile) / 100
+        k = percentile / 100 * n
         k.name = 'k, index location of percentile'
         if max_frame_size is None:
             max_frame_size = counts_bykey.sum(axis=1).max()
@@ -186,7 +187,7 @@ class DataFrameRDD(object):
                 df = get_values_in_bounds(df, min_bound, max_bound)
                 _grid = np.ones(df.shape) * pivot.T[df.columns].values
                 return (df > _grid).sum()
-            m = rdd.map(count_values_gt_than_pivot).collect()  # TODO: try sum()
+            m = rdd.map(count_values_gt_than_pivot).collect()  # TODO:try sum()
             m_sum = sum(m).sort_index()
             m_sum.name = 'num_nodes > pivot'
 
@@ -252,11 +253,11 @@ class DataFrameRDD(object):
         if _rdd is None:
             _rdd = self.rdd
 
-        def func(kv):
-            return (kv[0], get_values_in_bounds(
-                kv[1], min_bound, max_bound).count(axis=axis))
+        def func(df):
+            return get_values_in_bounds(
+                df, min_bound, max_bound).count(axis=axis)
 
-        rv = pd.DataFrame.from_items(_rdd.map(func).collect()).T
+        rv = pd.DataFrame.from_items(_rdd.mapValues(func).collect()).T
         rv.index.name = 'key'
         rv.columns.name = 'column'
         rv.sort_index(axis=1, inplace=True)
@@ -293,11 +294,14 @@ class DataFrameRDD(object):
                 "You cannot sample from columns with no data."
                 " Either your bounds are too strict or your"
                 " counts_bykey are wrong.")
-        sample = np.random.random()  # TODO: make one sample per column
+        sample = pd.Series(
+            np.random.uniform(size=cum_count_ratio_per_frame.shape[1]),
+            index=cum_count_ratio_per_frame.columns)
 
-        def assign_key(series):
+        def assign_key(col):
             """randomly select one distributed frame for each column"""
-            return series.index[np.digitize([sample], series.values)[0]]
+            return col.index[
+                np.digitize([sample[col.name]], col.values)[0]]
         sample_keys = cum_count_ratio_per_frame.apply(assign_key)
         sample_keys.name = cum_count_ratio_per_frame.index.name
 
