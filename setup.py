@@ -1,5 +1,5 @@
+from distutils.core import setup
 try:
-    from distutils.core import setup
     from setuptools import find_packages
 except ImportError:
     print ("Please install Distutils and setuptools"
@@ -8,7 +8,7 @@ except ImportError:
 
 setup(
     name='pyspark-pandas',
-    version='0.0.1-dev',
+    version='0.0.4',
     description=(
         'Tools and algorithms for pandas Dataframes distributed on pyspark.'
         ' Please consider the SparklingPandas project before this one'),

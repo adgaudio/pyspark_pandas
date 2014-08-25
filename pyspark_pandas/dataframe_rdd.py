@@ -218,7 +218,7 @@ class DataFrameRDD(object):
 
         Exactly one of these should be defined:
             percentile - (optional) an int or array of ints
-                in the range [0, 100] inclusive. Ignored if `nbins` is supplied.
+                in the range [0, 100] inclusive. Ignored if `nbins` is supplied
             nbins - (optional) an integer number representing how many evenly
                 spaced percentiles to calculate.
         """
