@@ -3,7 +3,7 @@ from __future__ import division
 import numpy as np
 import pandas as pd
 
-from pyspark_pandas import log
+from pyspark_pandas import errors, log
 
 
 def get_values_in_bounds(df, min_bound, max_bound, copy=False):
@@ -168,8 +168,9 @@ class DataFrameRDD(object):
             log.debug('elements remaining to process: %s'
                       % counts_bykey[nullcols].sum(axis=1).sum())
             _debugcnt += 1
-            if _debugcnt > maxiter:
-                raise Exception('max allowed iterations reached')
+            errors.log_raise_if(
+                _debugcnt > maxiter, 'max allowed iterations reached',
+                dict(num_iter=_debugcnt), errors.ExceededMaxIterations)
 
             # Select a random value as the pivot
             pivot = self.sampleValue(counts_bykey=counts_bykey,
@@ -290,11 +291,11 @@ class DataFrameRDD(object):
         cum_count_ratio_per_frame = np.cumsum(
             counts_bykey / counts_bykey.sum().astype('float64'))
         bad_counts = cum_count_ratio_per_frame.sum() > 0
-        if not bad_counts.all():
-            raise Exception(
-                "You cannot sample from columns with no data."
-                " Either your bounds are too strict or your"
-                " counts_bykey are wrong.")
+        errors.log_raise_if(
+            not bad_counts.all(),
+            ("You cannot sample from columns with no data. Either your"
+             " bounds are too strict or your counts_bykey are wrong."),
+            err_kls=errors.SamplingError)
         sample = pd.Series(
             np.random.uniform(size=cum_count_ratio_per_frame.shape[1]),
             index=cum_count_ratio_per_frame.columns)
