@@ -226,10 +226,12 @@ class DataFrameRDD(object):
         log.info("Executing percentileApprox", extra=dict(nbins=nbins))
         rdd = self.rdd
         percentile /= 100
+        if isinstance(percentile, (float, int, long, complex)):
+            percentile = [percentile]
 
         def get_percentiles(key_df):
             if nbins is None:
-                q = [percentile]
+                q = np.array(percentile)
             else:
                 step_size = 1. / nbins
                 q = np.arange(0, 1 + step_size, step_size)
