@@ -33,19 +33,19 @@ def get_rdd(seed=0):
 def demo():
     rdd = get_rdd()
 
-    log.warn('rdd.take(1)')
-    log.info(rdd.take(1))
+    print('\nexecuting: rdd.take(1)')
+    print(rdd.take(1))
 
-    log.warn('rdd.mean()')
-    log.info(rdd.mean())
+    print('\nexecuting: rdd.mean()')
+    print(rdd.mean())
 
-    log.warn('rdd.percentileApprox(percentile=50)')
-    log.info(rdd.percentileApprox(percentile=50))
+    print('\nexecuting: rdd.percentileApprox(percentile=50)')
+    print(rdd.percentileApprox(percentile=50))
 
-    log.warn('rdd.get_nbytes()')
-    log.info(rdd.get_nbytes())
+    print('\nexecuting: rdd.get_nbytes()')
+    print(rdd.get_nbytes())
 
-    log.warn('rdd.get_nbytes(per_partition=True, per_frame=True)')
-    log.info(rdd.get_nbytes(per_partition=True, per_frame=True))
+    print('\nexecuting: rdd.get_nbytes(per_partition=True, per_frame=True)')
+    print(rdd.get_nbytes(per_partition=True, per_frame=True))
 
     return rdd
