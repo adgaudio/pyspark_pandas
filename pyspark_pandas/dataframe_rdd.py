@@ -1,5 +1,6 @@
 from __future__ import division
 
+from operator import add
 import numpy as np
 import pandas as pd
 
@@ -88,6 +89,42 @@ class DataFrameRDD(object):
             return getattr(self, key)
         except:
             return getattr(self.rdd, key)
+
+    def get_nbytes(self, index=True, columns=True, values=True,
+                   per_partition=False, per_frame=False):
+        """
+        Find out the total number of bytes in memory the distributed frames
+        use.
+
+        If `per_partition` is True, calculate the bytes for each partition.
+        If any of `index`, `columns`, or `values` is False,
+            then exclude those from size calculations
+        """
+
+        def get_size(df):
+            nbytes = 0
+            if index:
+                nbytes += df.index.nbytes
+            if columns:
+                nbytes += df.columns.nbytes
+            if values:
+                nbytes += df.values.nbytes
+            return nbytes
+
+        def f(idx, partition):
+            for k, df in partition:
+                value = get_size(df)
+                if per_partition and per_frame:
+                    key = (idx, k)
+                elif per_partition:
+                    key = idx
+                elif per_frame:
+                    key = k
+                else:
+                    key = 'total'
+                yield (key, value)
+        return self.mapPartitionsWithIndex(f).reduceByKeyLocally(add)
+
 
     def max(self):
         def getmax(lst):
