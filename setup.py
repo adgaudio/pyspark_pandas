@@ -8,7 +8,7 @@ except ImportError:
 
 setup(
     name='pyspark-pandas',
-    version='0.0.7.dev0',
+    version='0.0.7',
     description=(
         'Tools and algorithms for pandas Dataframes distributed on pyspark.'
         ' Please consider the SparklingPandas project before this one'),
