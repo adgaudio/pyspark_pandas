@@ -270,8 +270,7 @@ class DataFrameRDD(object):
             if nbins is None:
                 q = np.array(percentile)
             else:
-                step_size = 1. / nbins
-                q = np.arange(0, 1 + step_size, step_size)
+                q = np.arange(0, 1, 1. / nbins)
             _, df = key_df
             return df.quantile(q)
         frame = pd.concat(rdd.map(get_percentiles, True).collect())
