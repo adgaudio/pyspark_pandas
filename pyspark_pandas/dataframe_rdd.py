@@ -90,6 +90,28 @@ class DataFrameRDD(object):
         except:
             return getattr(self.rdd, key)
 
+    def set_index(self, *args, **kwargs):
+        """
+        Update the index of each distributed frame.
+        Accepts same params as pandas.DataFrame.set_index(...)
+
+        `inplace` (bool) if True, don't return a new rdd.  Just update the
+            current one.  If True, this operation is not thread-safe.
+            This doesn't actually apply
+        """
+        if 'inplace' in kwargs:
+            inplace = kwargs.pop('inplace')
+        else:
+            inplace = False
+        rdd = (
+            self.rdd
+            .mapValues(lambda df: df.set_index(*args, **kwargs))
+        )
+        if inplace:
+            self.rdd = rdd
+        else:
+            return rdd
+
     def get_nbytes(self, index=True, columns=True, values=True,
                    per_partition=False, per_frame=False):
         """
@@ -124,7 +146,6 @@ class DataFrameRDD(object):
                     key = 'total'
                 yield (key, value)
         return self.mapPartitionsWithIndex(f).reduceByKeyLocally(add)
-
 
     def max(self):
         def getmax(lst):
